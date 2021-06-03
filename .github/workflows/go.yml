@@ -23,13 +23,16 @@ jobs:
       uses: actions/checkout@v1
     - name: Build Linux
       run: |
-        go env -w GOOS=linux && go env -w GOARCH=amd64  && go build -o clean-ns_linux-amd64 -v && chmod a+x clean-ns_linux-amd64
-        go env -w GOOS=linux && go env -w GOARCH=arm64  && go build -o clean-ns_linux-arm64 -v && chmod a+x clean-ns_linux-arm64
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o clean-ns_linux-amd64 -v
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm64  go build -o clean-ns_linux-arm64 -v
+        chmod a+x clean-ns_linux-amd64
+        chmod a+x clean-ns_linux-arm64
     - name: Build Darwin
       run: |
-        go env -w GOOS=darwin && go env -w GOARCH=amd64  && go build -o clean-ns_darwin-amd64 -v && chmod a+x clean-ns_darwin-amd64
-        go env -w GOOS=darwin && go env -w GOARCH=arm64  && go build -o clean-ns_darwin-arm64 -v && chmod a+x clean-ns_darwin-arm64
-
+        CGO_ENABLED=0 GOOS=darwin GOARCH=amd64  go build -o clean-ns_darwin-amd64 -v
+        CGO_ENABLED=0 GOOS=darwin GOARCH=arm64  go build -o clean-ns_darwin-arm64 -v
+        chmod a+x clean-ns_darwin-amd64
+        chmod a+x clean-ns_darwin-arm64
     - uses: ncipollo/release-action@v1
       with:
         artifacts: "clean-ns_linux-amd64,clean-ns_linux-arm64,clean-ns_darwin-amd64,clean-ns_darwin-arm64"
