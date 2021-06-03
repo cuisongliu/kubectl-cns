@@ -28,6 +28,7 @@ import (
 	hd "k8s.io/client-go/util/homedir"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -40,15 +41,32 @@ var rootCmd = &cobra.Command{
 			logger.Fatal("kubernetes config is not config")
 		}
 		client := kubernetes.NewForConfigOrDie(config)
-
+		ctx := context.Background()
 		for i := range args {
 			namespace := &v1.Namespace{}
 			namespace.Name = args[i]
-			_, err := client.CoreV1().Namespaces().Finalize(context.Background(), namespace, v12.UpdateOptions{})
-			if err != nil {
-				logger.Error("finalize namespace error: %v", err)
-			} else {
-				logger.Error("wait namespace gc %s", namespace.Name)
+			prompt := fmt.Sprintf("clean namespace %s in this cluster, continue clean (y/n)?", args[i])
+			if confirm(prompt) {
+				deleteNS, err := client.CoreV1().Namespaces().Get(ctx, args[i], v12.GetOptions{})
+				if err == nil {
+					if deleteNS.ObjectMeta.DeletionTimestamp.IsZero() {
+						e := client.CoreV1().Namespaces().Delete(context.Background(), args[i], v12.DeleteOptions{})
+						if e != nil {
+							logger.Error("delete namespace error: %v", e)
+						} else {
+							logger.Info("delete namespace success %s", namespace.Name)
+						}
+					} else {
+						_, e := client.CoreV1().Namespaces().Finalize(context.Background(), namespace, v12.UpdateOptions{})
+						if e != nil {
+							logger.Error("finalize namespace error: %v", e)
+						} else {
+							logger.Info("wait namespace gc %s", namespace.Name)
+						}
+					}
+				} else {
+					logger.Warn("get namespace %s is error [%s], skip clean this namespace", args[i], err.Error())
+				}
 			}
 		}
 	},
@@ -64,6 +82,34 @@ func getRestConfig() *rest.Config {
 		}
 	}
 	return config
+}
+
+var yesRx = regexp.MustCompile("^(?i:y(?:es)?)$")
+
+// like y|yes|Y|YES return true
+func getConfirmResult(str string) bool {
+	return yesRx.MatchString(str)
+}
+
+// send the prompt and get result
+func confirm(prompt string) bool {
+	var (
+		inputStr string
+		err      error
+	)
+	_, err = fmt.Fprint(os.Stdout, prompt)
+	if err != nil {
+		logger.Error("fmt.Fprint err", err)
+		os.Exit(-1)
+	}
+
+	_, err = fmt.Scanf("%s", &inputStr)
+	if err != nil {
+		logger.Error("fmt.Scanf err", err)
+		os.Exit(-1)
+	}
+
+	return getConfirmResult(inputStr)
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
