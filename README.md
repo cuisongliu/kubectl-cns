@@ -1,3 +1,3 @@
 ### Usage
 
-clean-ns open testns testns2
+kubectl cns aaa dddd
