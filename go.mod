@@ -1,4 +1,4 @@
-module github.com/cuisongliu/clean-ns
+module github.com/cuisongliu/kubectl-cns
 
 go 1.15
 

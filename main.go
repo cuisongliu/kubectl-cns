@@ -18,7 +18,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/cuisongliu/clean-ns/logger"
+	"github.com/cuisongliu/kubectl-cns/logger"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "clean-ns",
+	Use:   "kubectl-cns",
 	Short: "clean namespace",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := getRestConfig()
@@ -42,6 +42,10 @@ var rootCmd = &cobra.Command{
 		}
 		client := kubernetes.NewForConfigOrDie(config)
 		ctx := context.Background()
+		if len(args) == 0 {
+			logger.Warn("clean namespace is empty,skip clean.")
+			os.Exit(0)
+		}
 		for i := range args {
 			namespace := &v1.Namespace{}
 			namespace.Name = args[i]
