@@ -31,10 +31,25 @@ import (
 	"regexp"
 )
 
+var example = ` 
+	# delete an tx namespace
+	kubectl-cns tx
+
+	# delete an tx namespace by force
+	kubectl-cns tx --force
+
+	# delete some namespaces like tx, staging
+	kubectl-cns tx staging
+
+	# delete some namespaces like tx, staging , qa by force
+	kubect-cns tx staging qa --force
+	`
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "kubectl-cns",
 	Short: "clean namespace",
+	Example: example,
 	Run: func(cmd *cobra.Command, args []string) {
 		config := getRestConfig()
 		if config == nil {
@@ -49,31 +64,60 @@ var rootCmd = &cobra.Command{
 		for i := range args {
 			namespace := &v1.Namespace{}
 			namespace.Name = args[i]
-			prompt := fmt.Sprintf("clean namespace %s in this cluster, continue clean (y/n)?", args[i])
-			if confirm(prompt) {
-				deleteNS, err := client.CoreV1().Namespaces().Get(ctx, args[i], v12.GetOptions{})
-				if err == nil {
-					if deleteNS.ObjectMeta.DeletionTimestamp.IsZero() {
-						e := client.CoreV1().Namespaces().Delete(context.Background(), args[i], v12.DeleteOptions{})
-						if e != nil {
-							logger.Error("delete namespace error: %v", e)
-						} else {
-							logger.Info("delete namespace success %s", namespace.Name)
-						}
-					} else {
-						_, e := client.CoreV1().Namespaces().Finalize(context.Background(), namespace, v12.UpdateOptions{})
-						if e != nil {
-							logger.Error("finalize namespace error: %v", e)
-						} else {
-							logger.Info("wait namespace gc %s", namespace.Name)
-						}
-					}
+			if !Force {
+				prompt := fmt.Sprintf("clean namespace %s in this cluster, continue clean (y/n)?", args[i])
+				Force = confirm(prompt)
+			}
+
+			if Force {
+				if err := deleteNamespace(ctx, client, args[i], namespace) ; err != nil {
+					logger.Error("delete namespace error: ", err)
 				} else {
-					logger.Warn("get namespace %s is error [%s], skip clean this namespace", args[i], err.Error())
+					logger.Info("delete namespace success %s", namespace.Name)
 				}
+				// deleteNS, err := client.CoreV1().Namespaces().Get(ctx, args[i], v12.GetOptions{})
+				// if err == nil {
+				// 	if deleteNS.ObjectMeta.DeletionTimestamp.IsZero() {
+				// 		e := client.CoreV1().Namespaces().Delete(context.Background(), args[i], v12.DeleteOptions{})
+				// 		if e != nil {
+				// 			logger.Error("delete namespace error: %v", e)
+				// 		} else {
+				// 			logger.Info("delete namespace success %s", namespace.Name)
+				// 		}
+				// 	} else {
+				// 		_, e := client.CoreV1().Namespaces().Finalize(context.Background(), namespace, v12.UpdateOptions{})
+				// 		if e != nil {
+				// 			logger.Error("finalize namespace error: %v", e)
+				// 		} else {
+				// 			logger.Info("wait namespace gc %s", namespace.Name)
+				// 		}
+				// 	}
+				// } else {
+				// 	logger.Warn("get namespace %s is error [%s], skip clean this namespace", args[i], err.Error())
+				// }
 			}
 		}
 	},
+}
+
+func deleteNamespace (ctx context.Context ,client *kubernetes.Clientset, namespace string, ns *v1.Namespace)   error {
+	deleteNs , err := client.CoreV1().Namespaces().Get(ctx, namespace, v12.GetOptions{})
+	if err != nil {
+		return err
+	} 
+	if deleteNs.ObjectMeta.DeletionTimestamp.IsZero() {
+		err = client.CoreV1().Namespaces().Delete(context.Background(), namespace, v12.DeleteOptions{})
+	} else {
+		_, err = client.CoreV1().Namespaces().Finalize(context.Background(), ns, v12.UpdateOptions{})
+	}
+	return err
+}
+
+var Force bool
+
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&Force, "force", "f", false, "force to delete namespace with non-interaction")
+
 }
 
 func getRestConfig() *rest.Config {
