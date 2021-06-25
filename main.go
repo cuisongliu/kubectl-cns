@@ -35,16 +35,16 @@ import (
 var Force bool
 var example = ` 
 	# delete an tx namespace
-	kubectl-cns tx
+	kubectl cns tx
 
 	# delete an tx namespace by force
-	kubectl-cns tx --force
+	kubectl cns tx --force
 
 	# delete some namespaces like tx, staging
-	kubectl-cns tx staging
+	kubectl cns tx staging
 
 	# delete some namespaces like tx, staging , qa by force
-	kubect-cns tx staging qa --force
+	kubectl cns tx staging qa --force
 	`
 
 // rootCmd represents the base command when called without any subcommands
